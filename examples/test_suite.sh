@@ -1,68 +1,229 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Smart Group Criteria Examples for Jamf Pro
-  Use as reference when creating Smart Groups in Jamf Pro
--->
-<smart_groups>
-  
-  <!-- Disabled Built-in Microphones -->
-  <smart_group>
-    <name>Macs - Built-in Microphone Disabled</name>
-    <description>Computers with physically disabled built-in microphones (hardware kill switch)</description>
-    <criteria>
-      <criterion>
-        <name>Built-in Microphone Status</name>
-        <priority>0</priority>
-        <and_or>and</and_or>
-        <search_type>is</search_type>
-        <value>Unavailable or Disabled</value>
-      </criterion>
-    </criteria>
-  </smart_group>
-  
-  <!-- Working Microphones -->
-  <smart_group>
-    <name>Macs - Built-in Microphone Working</name>
-    <description>Computers with functional built-in microphones</description>
-    <criteria>
-      <criterion>
-        <name>Built-in Microphone Status</name>
-        <priority>0</priority>
-        <and_or>and</and_or>
-        <search_type>is</search_type>
-        <value>Available and Working</value>
-      </criterion>
-    </criteria>
-  </smart_group>
-  
-  <!-- Software Restricted -->
-  <smart_group>
-    <name>Macs - Microphone Software Restricted</name>
-    <description>Computers with microphone hardware present but software restricted</description>
-    <criteria>
-      <criterion>
-        <name>Built-in Microphone Status</name>
-        <priority>0</priority>
-        <and_or>and</and_or>
-        <search_type>is</search_type>
-        <value>Available but Restricted</value>
-      </criterion>
-    </criteria>
-  </smart_group>
-  
-  <!-- External Microphones -->
-  <smart_group>
-    <name>Macs - Using External Microphone</name>
-    <description>Computers using external microphones (built-in disabled)</description>
-    <criteria>
-      <criterion>
-        <name>Built-in Microphone Status</name>
-        <priority>0</priority>
-        <and_or>and</and_or>
-        <search_type>is</search_type>
-        <value>External Microphone Detected</value>
-      </criterion>
-    </criteria>
-  </smart_group>
+#!/bin/bash
+################################################################################
+# Test Suite for Microphone Detection EA
+# Tests various scenarios to ensure proper functionality
+################################################################################
 
-</smart_groups>
+# Source the main script functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Copy main functions here for testing
+check_hardware_presence() {
+    if system_profiler SPAudioDataType 2>/dev/null | \
+       grep -A30 "Input Device" | \
+       grep -qi "Built-in"; then
+        return 0
+    fi
+    
+    if ioreg -r -c IOAudioDevice -l 2>/dev/null | \
+       grep -q "AppleHDAEngineInput"; then
+        return 0
+    fi
+    
+    if ioreg -r -c IOAudioDevice -l 2>/dev/null | \
+       grep -B20 -A20 "Built-in" | \
+       grep -qi "input\|capture"; then
+        return 0
+    fi
+    
+    return 1
+}
+
+check_software_functionality() {
+    local CRITICAL_PASSED=0
+    local SUPPORTIVE_PASSED=0
+    
+    if pgrep -x "coreaudiod" >/dev/null 2>&1; then
+        CRITICAL_PASSED=$((CRITICAL_PASSED + 1))
+    fi
+    
+    local DEFAULT_INPUT
+    DEFAULT_INPUT=$(system_profiler SPAudioDataType 2>/dev/null | \
+                    grep -A5 "Default Input Device: Yes" | \
+                    grep "Built-in")
+    
+    if [[ -n "$DEFAULT_INPUT" ]]; then
+        CRITICAL_PASSED=$((CRITICAL_PASSED + 1))
+    else
+        if osascript -e 'input volume of (get volume settings)' >/dev/null 2>&1; then
+            CRITICAL_PASSED=$((CRITICAL_PASSED + 1))
+        fi
+    fi
+    
+    local AUDIO_KEXTS
+    AUDIO_KEXTS=$(kextstat 2>/dev/null | grep -ci "AppleHDA\|AppleAudio")
+    if [[ "$AUDIO_KEXTS" -gt 0 ]]; then
+        SUPPORTIVE_PASSED=$((SUPPORTIVE_PASSED + 1))
+    fi
+    
+    local MDM_RESTRICTION
+    MDM_RESTRICTION=$(profiles -P 2>/dev/null | \
+                      grep -i "allowmicrophone" | \
+                      grep -i "false")
+    if [[ -z "$MDM_RESTRICTION" ]]; then
+        SUPPORTIVE_PASSED=$((SUPPORTIVE_PASSED + 1))
+    fi
+    
+    local SYSTEM_TCC_DB="/Library/Application Support/com.apple.TCC/TCC.db"
+    local TCC_OK=1
+    
+    if [[ -r "$SYSTEM_TCC_DB" ]]; then
+        local DENIED_COUNT
+        DENIED_COUNT=$(sudo sqlite3 "$SYSTEM_TCC_DB" \
+            "SELECT COUNT(*) FROM access WHERE service='kTCCServiceMicrophone' AND allowed=0;" \
+            2>/dev/null)
+        
+        if [[ "${DENIED_COUNT:-0}" -gt 0 ]]; then
+            TCC_OK=0
+        fi
+    fi
+    
+    if [[ "$TCC_OK" -eq 1 ]]; then
+        SUPPORTIVE_PASSED=$((SUPPORTIVE_PASSED + 1))
+    fi
+    
+    local AUDIO_ERRORS
+    AUDIO_ERRORS=$(log show \
+                   --predicate 'subsystem == "com.apple.coreaudio"' \
+                   --last 30m 2>/dev/null | \
+                   grep -c -E "(error|fail).*(input|microphone)")
+    AUDIO_ERRORS=${AUDIO_ERRORS:-0}
+    
+    if [[ "$AUDIO_ERRORS" -lt 10 ]]; then
+        SUPPORTIVE_PASSED=$((SUPPORTIVE_PASSED + 1))
+    fi
+    
+    if [[ "$CRITICAL_PASSED" -eq 2 ]] && [[ "$SUPPORTIVE_PASSED" -ge 2 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+perform_microphone_detection() {
+    local MODEL
+    MODEL=$(sysctl -n hw.model 2>/dev/null)
+    
+    if [[ "$MODEL" =~ ^MacPro[0-9] ]] || \
+       [[ "$MODEL" =~ ^Macmini[1-8], ]] || \
+       [[ "$MODEL" =~ ^Mac-[A-F0-9]+$ ]]; then
+        echo "Not Applicable"
+        return
+    fi
+    
+    local HARDWARE_DETECTED=0
+    if check_hardware_presence; then
+        HARDWARE_DETECTED=1
+    fi
+    
+    local SOFTWARE_WORKING=0
+    if check_software_functionality; then
+        SOFTWARE_WORKING=1
+    fi
+    
+    if [[ "$HARDWARE_DETECTED" -eq 1 ]] && [[ "$SOFTWARE_WORKING" -eq 1 ]]; then
+        echo "Available and Working"
+    elif [[ "$HARDWARE_DETECTED" -eq 1 ]] && [[ "$SOFTWARE_WORKING" -eq 0 ]]; then
+        echo "Available but Restricted"
+    elif [[ "$HARDWARE_DETECTED" -eq 0 ]] && [[ "$SOFTWARE_WORKING" -eq 1 ]]; then
+        local FINAL_BUILTIN_CHECK
+        FINAL_BUILTIN_CHECK=$(system_profiler SPAudioDataType 2>/dev/null | \
+                              grep -c "Built-in")
+        
+        if [[ "${FINAL_BUILTIN_CHECK:-0}" -gt 0 ]]; then
+            echo "Available and Working"
+        else
+            echo "External Microphone Detected"
+        fi
+    elif [[ "$HARDWARE_DETECTED" -eq 0 ]] && [[ "$SOFTWARE_WORKING" -eq 0 ]]; then
+        echo "Unavailable or Disabled"
+    else
+        echo "Unknown Status"
+    fi
+}
+
+run_test() {
+    local TEST_NAME=$1
+    local EXPECTED=$2
+    local RESULT
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "TEST: $TEST_NAME"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    RESULT=$(perform_microphone_detection)
+    
+    echo "Result:   $RESULT"
+    echo "Expected: $EXPECTED"
+    
+    if [[ "$RESULT" == "$EXPECTED" ]]; then
+        echo "Status:   ✅ PASS"
+    else
+        echo "Status:   ❌ FAIL"
+    fi
+}
+
+main() {
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo "           MICROPHONE DETECTION TEST SUITE"
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo ""
+    echo "Running tests on: $(sysctl -n hw.model) - $(sw_vers -productVersion)"
+    echo ""
+
+    run_test "Normal Operation (Baseline)" "Available and Working"
+
+    echo ""
+    echo "⚠️  Temporarily killing coreaudiod (will auto-restart)..."
+    sudo killall coreaudiod 2>/dev/null
+    sleep 1
+
+    run_test "CoreAudio Daemon Crashed" "Available but Restricted"
+
+    echo "   Waiting for coreaudiod to restart..."
+    sleep 3
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "FINAL VERIFICATION: Confirming system is back to normal"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    sleep 2
+
+    run_test "Final Verification (Post-Tests)" "Available and Working"
+
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo "                      TEST SUITE COMPLETE"
+    echo "═══════════════════════════════════════════════════════════════════"
+}
+
+main
+```
+
+4. Click **Commit new file**
+
+---
+
+### **File 12: Update `README.md`**
+
+**Path:** `README.md` (already exists, we need to replace it)
+
+**How to add:**
+1. Click on `README.md` in your repo
+2. Click the pencil icon (✏️) to edit
+3. **Delete all existing content**
+4. Paste the new README from earlier (the complete one with badges, features, etc.)
+5. **Replace ALL instances of `YOUR_USERNAME`** with your actual GitHub username
+6. Click **Commit changes**
+
+---
+
+## **Step 3: Add Repository Topics**
+
+1. On your repo main page, look for the ⚙️ icon next to "About"
+2. Click it
+3. Add these topics (comma-separated):
+```
+   jamf, jamf-pro, extension-attribute, macos, microphone, hardware-detection, mdm, bash, shellscript, security
