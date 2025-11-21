@@ -186,4 +186,4 @@ sudo /path/to/microphone_check.sh 2>&1 | tee debug.log
 ## Contact
 
 For issues not covered here, please open an issue on GitHub:
-https://github.com/YOUR_USERNAME/jamf-microphone-detection/issues
+https://github.com/Sunshine-was-here/jamf-microphone-detection/issues
