@@ -134,5 +134,5 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 ## Support
 
 For issues or questions:
-- [GitHub Issues](https://github.com/YOUR_USERNAME/jamf-microphone-detection/issues)
-- [Documentation](https://github.com/YOUR_USERNAME/jamf-microphone-detection)
+- [GitHub Issues](https://github.com/Sunshine-was-here/jamf-microphone-detection/issues)
+- [Documentation](https://github.com/Sunshine-was-here/jamf-microphone-detection)
