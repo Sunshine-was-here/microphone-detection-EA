@@ -6,7 +6,7 @@
 
 1. **Download Script:**
 ```bash
-   curl -o microphone_check.sh https://raw.githubusercontent.com/YOUR_USERNAME/jamf-microphone-detection/main/microphone_check.sh
+   curl -o microphone_check.sh https://raw.githubusercontent.com/Sunshine-was-here/jamf-microphone-detection/main/microphone_check.sh
 ```
 
 2. **Make Executable:**
@@ -29,7 +29,7 @@
 Run the comprehensive test suite:
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/jamf-microphone-detection.git
+git clone https://github.com/Sunshine-was-here/jamf-microphone-detection.git
 cd jamf-microphone-detection
 
 # Make executable
