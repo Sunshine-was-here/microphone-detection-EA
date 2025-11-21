@@ -1,0 +1,54 @@
+name: ShellCheck
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  shellcheck:
+    name: Run ShellCheck
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: error
+          ignore_paths: |
+            .git
+            .github
+        continue-on-error: false
+```
+
+5. Click **Commit new file**
+
+---
+
+## **Step 2: Check Why It Failed**
+
+After committing, let's see what the error is:
+
+1. Go to the **Actions** tab in your repo
+2. Click on the failed workflow run (will say "ShellCheck")
+3. Click on the red ❌ job
+4. Expand the "Run ShellCheck" step
+5. **Copy the error message** and share it with me
+
+---
+
+## **Common Causes & Quick Fixes:**
+
+### **Issue 1: ShellCheck Finding Problems in Scripts**
+
+ShellCheck might be finding actual issues in the scripts. Common warnings:
+
+**If you see errors like:**
+```
+SC2086: Double quote to prevent globbing and word splitting
+SC2162: read without -r will mangle backslashes
