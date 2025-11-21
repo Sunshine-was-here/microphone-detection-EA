@@ -175,5 +175,5 @@ When reporting test failures, include:
 ## Support
 
 For testing assistance:
-- [GitHub Issues](https://github.com/YOUR_USERNAME/jamf-microphone-detection/issues)
-- [Documentation](https://github.com/YOUR_USERNAME/jamf-microphone-detection)
+- [GitHub Issues](https://github.com/Sunshine-was-here/jamf-microphone-detection/issues)
+- [Documentation](https://github.com/Sunshine-was-here/jamf-microphone-detection)
