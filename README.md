@@ -1,4 +1,4 @@
-# Jamf Pro - Built-in Microphone Detection
+# Jamf Pro - Built-in Microphone Detection EA
 
 [![ShellCheck](https://github.com/YOUR_USERNAME/jamf-microphone-detection/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/YOUR_USERNAME/jamf-microphone-detection/actions/workflows/shellcheck.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
