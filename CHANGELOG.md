@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive testing suite
 - Production-ready error handling
 
-[6.3.0]: https://github.com/YOUR_USERNAME/jamf-microphone-detection/releases/tag/v6.3.0
-[6.2.0]: https://github.com/YOUR_USERNAME/jamf-microphone-detection/releases/tag/v6.2.0
-[6.1.0]: https://github.com/YOUR_USERNAME/jamf-microphone-detection/releases/tag/v6.1.0
-[6.0.0]: https://github.com/YOUR_USERNAME/jamf-microphone-detection/releases/tag/v6.0.0
+[6.3.0]: https://github.com/Sunshine-was-here/jamf-microphone-detection/releases/tag/v6.3.0
+[6.2.0]: https://github.com/Sunshine-was-here/jamf-microphone-detection/releases/tag/v6.2.0
+[6.1.0]: https://github.com/Sunshine-was-here/jamf-microphone-detection/releases/tag/v6.1.0
+[6.0.0]: https://github.com/Sunshine-was-here/jamf-microphone-detection/releases/tag/v6.0.0
